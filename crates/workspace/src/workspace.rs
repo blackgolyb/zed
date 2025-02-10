@@ -66,7 +66,7 @@ use remote::{ssh_session::ConnectionIdentifier, SshClientDelegate, SshConnection
 use schemars::JsonSchema;
 use serde::Deserialize;
 use session::AppSession;
-use settings::Settings;
+use settings::{update_settings_file, Settings};
 use shared_screen::SharedScreen;
 use sqlez::{
     bindable::{Bind, Column, StaticColumnCount},
@@ -95,7 +95,8 @@ use ui::prelude::*;
 use util::{paths::SanitizedPath, serde::default_true, ResultExt, TryFutureExt};
 use uuid::Uuid;
 pub use workspace_settings::{
-    AutosaveSetting, RestoreOnStartupBehavior, TabBarSettings, WorkspaceSettings,
+    AutosaveSetting, RestoreOnStartupBehavior, StatusBarSettings, TabBarSettings, TitleBarSettings,
+    WorkspaceSettings,
 };
 
 use crate::notifications::NotificationId;
@@ -152,6 +153,8 @@ actions!(
         ReloadActiveItem,
         SaveAs,
         SaveWithoutFormat,
+        ToggleTitleBar,
+        ToggleStatusBar,
         ToggleBottomDock,
         ToggleCenteredLayout,
         ToggleLeftDock,
@@ -343,6 +346,8 @@ pub fn init_settings(cx: &mut App) {
     ItemSettings::register(cx);
     PreviewTabsSettings::register(cx);
     TabBarSettings::register(cx);
+    TitleBarSettings::register(cx);
+    StatusBarSettings::register(cx);
 }
 
 fn prompt_and_open_paths(app_state: Arc<AppState>, options: PathPromptOptions, cx: &mut App) {
@@ -2492,6 +2497,22 @@ impl Workspace {
         cx.focus_self(window);
         cx.notify();
         self.serialize_workspace(window, cx);
+    }
+
+    pub fn toggle_status_bar(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+        let current_show = StatusBarSettings::get_global(cx).show;
+        let fs = self.app_state.fs.clone();
+        update_settings_file::<StatusBarSettings>(fs, cx, move |setting, _| {
+            setting.show = Some(!current_show);
+        });
+    }
+
+    pub fn toggle_title_bar(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+        let current_show = TitleBarSettings::get_global(cx).show;
+        let fs = self.app_state.fs.clone();
+        update_settings_file::<TitleBarSettings>(fs, cx, move |setting, _| {
+            setting.show = Some(!current_show);
+        });
     }
 
     /// Transfer focus to the panel of the given type.
@@ -4893,6 +4914,16 @@ impl Workspace {
                     workspace.reopen_closed_item(window, cx).detach();
                 },
             ))
+            .on_action(cx.listener(
+                |workspace: &mut Workspace, _: &ToggleStatusBar, window, cx| {
+                    workspace.toggle_status_bar(window, cx);
+                },
+            ))
+            .on_action(cx.listener(
+                |workspace: &mut Workspace, _: &ToggleTitleBar, window, cx| {
+                    workspace.toggle_title_bar(window, cx);
+                },
+            ))
             .on_action(cx.listener(Workspace::toggle_centered_layout))
     }
 
@@ -5283,6 +5314,8 @@ impl Render for Workspace {
         };
         let ui_font = theme::setup_ui_font(window, cx);
 
+        let show_titlebar = TitleBarSettings::get_global(cx).show;
+        let show_statusbar = StatusBarSettings::get_global(cx).show;
         let theme = cx.theme().clone();
         let colors = theme.colors();
 
@@ -5299,7 +5332,9 @@ impl Render for Workspace {
                 .items_start()
                 .text_color(colors.text)
                 .overflow_hidden()
-                .children(self.titlebar_item.clone())
+                .when(show_titlebar, |this| {
+                    this.children(self.titlebar_item.clone())
+                })
                 .child(
                     div()
                         .size_full()
@@ -5482,7 +5517,7 @@ impl Render for Workspace {
                                 }))
                                 .children(self.render_notifications(window, cx)),
                         )
-                        .child(self.status_bar.clone())
+                        .when(show_statusbar, |this| this.child(self.status_bar.clone()))
                         .child(self.modal_layer.clone()),
                 ),
             window,

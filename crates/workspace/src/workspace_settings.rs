@@ -208,6 +208,32 @@ pub struct CenteredLayoutSettings {
     pub right_padding: Option<f32>,
 }
 
+#[derive(Deserialize)]
+pub struct TitleBarSettings {
+    pub show: bool,
+}
+
+#[derive(Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct TitleBarSettingsContent {
+    /// Whether or not to show the title bar.
+    ///
+    /// Default: true
+    pub show: Option<bool>,
+}
+
+#[derive(Deserialize)]
+pub struct StatusBarSettings {
+    pub show: bool,
+}
+
+#[derive(Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct StatusBarSettingsContent {
+    /// Whether or not to show the status bar.
+    ///
+    /// Default: true
+    pub show: Option<bool>,
+}
+
 impl Settings for WorkspaceSettings {
     const KEY: Option<&'static str> = None;
 
@@ -222,6 +248,26 @@ impl Settings for TabBarSettings {
     const KEY: Option<&'static str> = Some("tab_bar");
 
     type FileContent = TabBarSettingsContent;
+
+    fn load(sources: SettingsSources<Self::FileContent>, _: &mut App) -> Result<Self> {
+        sources.json_merge()
+    }
+}
+
+impl Settings for TitleBarSettings {
+    const KEY: Option<&'static str> = Some("title_bar");
+
+    type FileContent = TitleBarSettingsContent;
+
+    fn load(sources: SettingsSources<Self::FileContent>, _: &mut App) -> Result<Self> {
+        sources.json_merge()
+    }
+}
+
+impl Settings for StatusBarSettings {
+    const KEY: Option<&'static str> = Some("status_bar");
+
+    type FileContent = StatusBarSettingsContent;
 
     fn load(sources: SettingsSources<Self::FileContent>, _: &mut App) -> Result<Self> {
         sources.json_merge()
