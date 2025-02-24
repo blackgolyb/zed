@@ -2491,7 +2491,7 @@ impl Workspace {
         let current_show = StatusBarSettings::get_global(cx).show;
         let fs = self.app_state.fs.clone();
         update_settings_file::<StatusBarSettings>(fs, cx, move |setting, _| {
-            setting.show = Some(!current_show);
+            let _ = setting.show.insert(!current_show);
         });
     }
 
@@ -2499,7 +2499,7 @@ impl Workspace {
         let current_show = TitleBarSettings::get_global(cx).show;
         let fs = self.app_state.fs.clone();
         update_settings_file::<TitleBarSettings>(fs, cx, move |setting, _| {
-            setting.show = Some(!current_show);
+            let _ = setting.show.insert(!current_show);
         });
     }
 
